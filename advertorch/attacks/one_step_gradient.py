@@ -66,8 +66,10 @@ class GradientSignAttack(Attack, LabelMixin):
         loss = self.loss_fn(outputs, y)
         if self.targeted:
             loss = -loss
-        loss.backward()
-        grad_sign = xadv.grad.detach().sign()
+        # loss.backward()
+        # grad_sign = xadv.grad.detach().sign()
+        xadv_grad = torch.autograd.grad(loss, xadv)[0]
+        grad_sign = xadv_grad.detach().sign()
 
         xadv = xadv + batch_multiply(self.eps, grad_sign)
 
@@ -124,8 +126,10 @@ class GradientAttack(Attack, LabelMixin):
         loss = self.loss_fn(outputs, y)
         if self.targeted:
             loss = -loss
-        loss.backward()
-        grad = normalize_by_pnorm(xadv.grad)
+        # loss.backward()
+        # grad = normalize_by_pnorm(xadv.grad)
+        xadv_grad = torch.autograd.grad(loss, xadv)[0]
+        grad = normalize_by_pnorm(xadv_grad)
         xadv = xadv + batch_multiply(self.eps, grad)
         xadv = clamp(xadv, self.clip_min, self.clip_max)
 
