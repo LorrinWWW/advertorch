@@ -67,16 +67,17 @@ def perturb_iterative(xvar, yvar, predict, nb_iter, eps, eps_iter, loss_fn,
         if minimize:
             loss = -loss
 
-        loss.backward()
+        # loss.backward()
+        delta_grad = torch.autograd.grad(loss, delta)[0]
         if ord == np.inf:
-            grad_sign = delta.grad.data.sign()
+            grad_sign = delta_grad.data.sign()
             delta.data = delta.data + batch_multiply(eps_iter, grad_sign)
             delta.data = batch_clamp(eps, delta.data)
             delta.data = clamp(xvar.data + delta.data, clip_min, clip_max
                                ) - xvar.data
 
         elif ord == 2:
-            grad = delta.grad.data
+            grad = delta_grad.data
             grad = normalize_by_pnorm(grad)
             delta.data = delta.data + batch_multiply(eps_iter, grad)
             delta.data = clamp(xvar.data + delta.data, clip_min, clip_max
@@ -85,7 +86,7 @@ def perturb_iterative(xvar, yvar, predict, nb_iter, eps, eps_iter, loss_fn,
                 delta.data = clamp_by_pnorm(delta.data, ord, eps)
 
         elif ord == 1:
-            grad = delta.grad.data
+            grad = delta_grad.data
             abs_grad = torch.abs(grad)
 
             batch_size = grad.size(0)
@@ -110,7 +111,7 @@ def perturb_iterative(xvar, yvar, predict, nb_iter, eps, eps_iter, loss_fn,
         else:
             error = "Only ord = inf, ord = 1 and ord = 2 have been implemented"
             raise NotImplementedError(error)
-        delta.grad.data.zero_()
+        delta_grad.data.zero_()
 
     x_adv = clamp(xvar + delta, clip_min, clip_max)
     return x_adv
@@ -417,10 +418,11 @@ class MomentumIterativeAttack(Attack, LabelMixin):
             loss = self.loss_fn(outputs, y)
             if self.targeted:
                 loss = -loss
-            loss.backward()
+            # loss.backward()
+            delta_grad = torch.autograd.grad(loss, delta)[0]
 
             g = self.decay_factor * g + normalize_by_pnorm(
-                delta.grad.data, p=1)
+                delta_grad.data, p=1)
             # according to the paper it should be .sum(), but in their
             #   implementations (both cleverhans and the link from the paper)
             #   it is .mean(), but actually it shouldn't matter
